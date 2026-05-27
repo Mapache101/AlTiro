@@ -19,8 +19,27 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 const functions = firebase.functions();
 
-const processTransaction = functions.httpsCallable('processTransaction');
-
+// Custom callable wrapper for Cloud Run HTTP function
+async function processTransaction(data) {
+    const user = auth.currentUser;
+    if (!user) throw new Error('Not authenticated');
+    
+    const token = await user.getIdToken();
+    const response = await fetch('https://process-transaction-XXXXXXXXXX-uc.a.run.app', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ data: data })
+    });
+    
+    const result = await response.json();
+    if (result.error) {
+        throw new Error(result.error.message);
+    }
+    return { data: result.result };
+}
 // ==================== STATE ====================
 let currentUser = null;
 let isAdmin = false;
